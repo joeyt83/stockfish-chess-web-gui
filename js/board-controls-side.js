@@ -201,8 +201,7 @@ $('#btn-analyze').click(function() {
   stateAnalyze = 'grep';
   $('#btn-analyze').addClass('disabled loading');
   console.log('Analyze ' + game.fen());
-  stockfish.postMessage('position fen ' + game.fen());
-  stockfish.postMessage('go depth ' + staticSkill);
+  opponent.solicitAnalysis(game.fen(), staticSkill)
 });
 
 function checkAnalyzeOption() {

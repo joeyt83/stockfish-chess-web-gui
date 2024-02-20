@@ -49,8 +49,7 @@ function setMobileBoard(position = false) {
           checkPositions('computer');
         }
         setTimeout(function() {
-          stockfish.postMessage('position fen ' + game.fen());
-          stockfish.postMessage('go depth ' + engineSkill);
+	  opponent.notifyMove(game.fen(), engineSkill)
         }, 1000);
         return game.fen();
       }

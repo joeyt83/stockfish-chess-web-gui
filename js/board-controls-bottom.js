@@ -72,8 +72,7 @@ $('#btn-show-hint').on('click', function () {
   stateHint = 'grep';
   $('#btn-show-hint').addClass('loading disabled');
   console.log('Hint for ' + game.fen());
-  stockfish.postMessage('position fen ' + game.fen());
-  stockfish.postMessage('go depth ' + staticSkill);
+  opponent.solicitHint(game.fen(), staticSkill)
 });
 
 // Make one step back

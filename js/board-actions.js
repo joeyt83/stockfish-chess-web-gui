@@ -1,7 +1,7 @@
 function updateEngineSkill() {
   if (engineSkill != parseInt($('#game-difficulty-skill-value').text())) {
     engineSkill = parseInt($('#game-difficulty-skill-value').text());
-    stockfish.postMessage('setoption name skill level value ' + engineSkill);
+    opponent.updateEngineSkill(engineSkill)
     console.log('Skill level is ' + engineSkill + ' (setoption name skill level value ' + engineSkill + ')');
   }
 }
@@ -87,8 +87,7 @@ function loadBoard(fen, fromHistory = false) {
     if (firstTurn == 'computer' && !engineDisabled) {
       $('#board').addClass('locked');
       updateEngineSkill();
-      stockfish.postMessage('position fen ' + board.fen() + ' ' + game.turn());
-      stockfish.postMessage('go depth ' + engineSkill);
+      opponent.solicitFirstMove(board.fen(), game.turn(), engineSkill)
     }
 
     startTimer();
@@ -152,8 +151,7 @@ function opponentTurn() {
     updateEngineSkill();
 
     setTimeout(function() {
-      stockfish.postMessage('position fen ' + game.fen());
-      stockfish.postMessage('go depth ' + engineSkill);
+      opponent.notifyMove(game.fen(), engineSkill)
     }, 500);
 
     startTimer();
