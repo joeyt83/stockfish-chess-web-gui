@@ -16,7 +16,7 @@ function setMobileBoard(position = false) {
 
   board = new Chessboard('board', {
 
-    position: ChessUtils.FEN.startId,
+    position: position,
 
     eventHandlers: {
 

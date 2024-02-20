@@ -100,7 +100,7 @@ function loadBoard(fen, fromHistory = false) {
 
 // make opponent turn
 
-function opponentTurn() {
+function opponentTurn(moveMade=true) {
 
   console.log('Opponent turn.');
 
@@ -151,7 +151,7 @@ function opponentTurn() {
     updateEngineSkill();
 
     setTimeout(function() {
-      opponent.notifyMove(game.fen(), engineSkill)
+      opponent.notifyMove(game.fen(), engineSkill, moveMade)
     }, 500);
 
     startTimer();

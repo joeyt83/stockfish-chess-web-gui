@@ -91,16 +91,42 @@ function calcFieldNum(fieldCode) {
     return num;
 }
 
-const opponent = {
+const makeMove = function(moveStr) {
+
+    var match = moveStr.match(/([a-h][1-8])([a-h][1-8])([qrbk])?/);
+    stopTimer();
+
+    console.log("MOVESTR", moveStr)
+    console.log("MATCH", match)
+    var move = game.move({
+        from: match[1],
+        to: match[2],
+        promotion: match[3]
+    });
+
+    console.log(game.fen());
+
+    board.position(game.fen());
+
+    checkPositions('player');
+    checkAnalyzeOption();
+
+    if (game.history().length > 0) {
+        $('#btn-take-back').removeClass('disabled');
+    }
+
+    listMoves();
+    startTimer();
+
+    gameHistoryAddMove(game.fen());
+}
+
+const theAIopponent = {
     stockfish: new Worker('js/stockfish.js'),
 
     notifyEngine: function(fen, engineSkill) {
         this.stockfish.postMessage('position fen ' + fen);
         this.stockfish.postMessage('go depth ' + engineSkill);
-    },
-
-    notifyMove: function(fen, engineSkill) {
-        this.notifyEngine(fen, engineSkill)
     },
 
     updateEngineSkill: function(engineSkill) {
@@ -112,15 +138,78 @@ const opponent = {
         this.notifyEngine(updatedFen, engineSkill)
     },
 
+    notifyMove: function(fen, engineSkill) {
+        this.notifyEngine(fen, engineSkill)
+    },
+
+    handleMove: function(eventStr) {
+        var match = eventStr.match(/^bestmove ([a-h][1-8][a-h][1-8][qrbk])?/);
+
+        if (match) {
+            console.log('Match and move.');
+	    // TODO. Fix this as it currently extracts the wrong part of the eventStr
+            makeMove(match[0])
+        }
+    },
+
     solicitHint: function(fen, engineSkill) {
         this.notifyEngine(fen, engineSkill)
+    },
+
+    handleHint: function(eventStr) {
+        var match = eventStr.match(/^bestmove ([a-h][1-8])([a-h][1-8])([qrbk])?/);
+
+        if (match) {
+            $('#board .square-' + match[1]).css('background', '#f7c5cd');
+            $('#board .square-' + match[2]).css('background', '#f7c5cd');
+            $('#board_chess_square_' + calcFieldNum(match[1])).css('background', '#f7c5cd');
+            $('#board_chess_square_' + calcFieldNum(match[2])).css('background', '#f7c5cd');
+
+            stateHint = false;
+            $('#btn-show-hint').removeClass('loading disabled');
+
+            setTimeout(function() {
+                $('#board .square-55d63').css('background', '');
+                $('.chess_square').css('background', '');
+            }, 2500);
+        }
     },
 
     solicitAnalysis: function(fen, engineSkill) {
         this.notifyEngine(fen, engineSkill)
     },
 
+    handleAnalysis: function(eventStr) {
+        var regex = new RegExp("info depth " + staticSkill + " seldepth .*? pv (.*)");
+        var seldepthMatch = regex.exec(eventStr);
+
+        if (seldepthMatch) {
+            console.log('Analyze entry match.');
+
+            var moves = seldepthMatch[1].split(' ');
+            stateAnalyzeMatch = '';
+            for (var i = 0, len = 5; i < len; i++) {
+                stateAnalyzeMatch += (i + 1) + '. ' + moves[i] + ' ';
+            }
+        };
+
+        var regex = new RegExp("bestmove .*");
+        var bestmoveMatch = regex.exec(eventStr);
+
+        if (bestmoveMatch) {
+            $('#game-analyze-string').text(stateAnalyzeMatch).removeClass('hidden');;
+            stateAnalyze = false;
+            $('#btn-analyze').removeClass('disabled loading');
+
+        }
+    },
+
     init: function() {
+        // Keep these references to use inside the onmessage handler.
+        // ('this' changes inside that handler).
+        const handleHint = this.handleHint
+        const handleAnalysis = this.handleAnalysis
+        const handleMove = this.handleMove
 
         this.stockfish.onmessage = function(event) {
 
@@ -131,59 +220,12 @@ const opponent = {
             var eventStr = event.data;
 
             if (stateHint == 'grep') {
-
-                var match = eventStr.match(/^bestmove ([a-h][1-8])([a-h][1-8])([qrbk])?/);
-
-                if (match) {
-
-                    $('#board .square-' + match[1]).css('background', '#f7c5cd');
-                    $('#board .square-' + match[2]).css('background', '#f7c5cd');
-                    $('#board_chess_square_' + calcFieldNum(match[1])).css('background', '#f7c5cd');
-                    $('#board_chess_square_' + calcFieldNum(match[2])).css('background', '#f7c5cd');
-
-                    stateHint = false;
-                    $('#btn-show-hint').removeClass('loading disabled');
-
-                    setTimeout(function() {
-                        $('#board .square-55d63').css('background', '');
-                        $('.chess_square').css('background', '');
-                    }, 2500);
-
-                }
-
+                handleHint(eventStr)
                 return;
             }
 
             if (stateAnalyze == 'grep') {
-
-                var regex = new RegExp("info depth " + staticSkill + " seldepth .*? pv (.*)");
-                var seldepthMatch = regex.exec(eventStr);
-
-                if (seldepthMatch) {
-
-                    console.log('Analyze entry match.');
-
-                    var moves = seldepthMatch[1].split(' ');
-                    stateAnalyzeMatch = '';
-
-                    for (var i = 0, len = 5; i < len; i++) {
-                        stateAnalyzeMatch += (i + 1) + '. ' + moves[i] + ' ';
-                    }
-
-                };
-
-                var regex = new RegExp("bestmove .*");
-                var bestmoveMatch = regex.exec(eventStr);
-
-                if (bestmoveMatch) {
-
-                    $('#game-analyze-string').text(stateAnalyzeMatch).removeClass('hidden');;
-
-                    stateAnalyze = false;
-                    $('#btn-analyze').removeClass('disabled loading');
-
-                }
-
+                handleAnalysis(eventStr)
                 return;
             }
 
@@ -196,43 +238,8 @@ const opponent = {
                 $('#board-positions-data').text('Tactical solution: ' + event.data);
             }
 
-            // console.log('stateAnalyze: ' + stateAnalyze);
-            // console.log('stateHint: ' + stateHint);
-
             if (!stateAnalyze && !stateHint) {
-
-                var match = eventStr.match(/^bestmove ([a-h][1-8])([a-h][1-8])([qrbk])?/);
-
-                if (match) {
-
-                    console.log('Match and move.');
-
-                    stopTimer();
-
-                    var move = game.move({
-                        from: match[1],
-                        to: match[2],
-                        promotion: match[3]
-                    });
-
-                    console.log(game.fen());
-
-                    board.position(game.fen());
-
-                    checkPositions('player');
-                    checkAnalyzeOption();
-
-                    if (game.history().length > 0) {
-                        $('#btn-take-back').removeClass('disabled');
-                    }
-
-                    listMoves();
-                    startTimer();
-
-                    gameHistoryAddMove(game.fen());
-
-                }
-
+                handleMove(eventStr)
             }
 
         };
@@ -240,4 +247,69 @@ const opponent = {
 
 }
 
-opponent.init()
+const theJoeOpponent = {
+
+    notifyMove: function(localFen, engineSkill, moveMade = true) {
+        // Engine skill is ignored.
+
+        console.log("notifyMove called with local fen", localFen)
+        if (moveMade) {
+            // python chess lib on the server side ignores the en passant square in fens so we remove.
+            // see https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation            
+            var localFenParts = localFen.split(' ')
+            newFenParts = localFenParts.slice(0, 3)
+            newFenParts.push("-")
+            newFenParts.push(...localFenParts.slice(4))
+            localFen = newFenParts.join(' ')
+
+            $.post("/server/game_status", {
+                "fen": localFen,
+                "player": "w"
+            }, function(resp) {
+                console.log("Move succesfully registered.", localFen)
+            })
+        }
+
+        var pollIntervalId = window.setInterval(function() {
+            $.get("/server/game_status", function(statusJson) {
+                console.log(statusJson);
+                var remoteFen = statusJson["fen"]
+                console.log("checking local fen", localFen)
+                console.log("checking remote fen", remoteFen)
+                if (localFen == remoteFen) {
+                    // Do nothing - no remote move made.
+                } else {
+                    clearInterval(pollIntervalId)
+                    var lastMove = statusJson["last_move"]
+                    console.log("REMOTE MOVE DETECTED", lastMove)
+                    makeMove(lastMove)
+                }
+            })
+        }, 2000)
+    },
+
+    updateEngineSkill: function(engineSkill) {
+        console.log("Engine skill not applicable to the Joe opponent.")
+    },
+
+    solicitFirstMove: function(fen, engineSkill, turn) {
+        console.log("Solicit first move is not applicable to the Joe opponent.")
+    },
+
+    solicitHint: function(fen, engineSkill) {
+        console.log("Hints are not applicable to the Joe opponent.")
+    },
+
+    solicitAnalysis: function(fen, engineSkill) {
+        console.log("Analysis is not applicable to the Joe opponent.")
+    },
+
+    init: function() {
+
+    }
+
+}
+
+theAIopponent.init()
+theJoeOpponent.init()
+var opponent = theJoeOpponent

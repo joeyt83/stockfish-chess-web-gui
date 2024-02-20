@@ -1,29 +1,18 @@
 // init board desktop
 
 function setDesktopBoard(position = false, sparePieces = false) {
+  
+  // field highlight functions
+  var removeGreySquares = function() {
+    $('#board .square-55d63').css('background', '');
+  };
 
-  gameEnd = false;
+  var greySquare = function(square) {
+    var squareEl = $('#board .square-' + square), background = '#fbe3e7';
+    if (squareEl.hasClass('black-3c85d') === true) background = '#f7c5cd';
+    squareEl.css('background', background);
+  };
 
-  // mode to set chess figures in custom position
-  if (sparePieces) {
-    board = ChessBoard('board', {
-      draggable: true,
-      dropOffBoard: 'trash',
-      sparePieces: true,
-      pieceTheme: 'img/pieces/{piece}.svg'
-    });
-    return;
-  }
-
-  // init board with preloaded position (fen)
-  if (position == false) {
-    position = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-  } else {
-    console.log('Custom: ' + position);
-  }
-
-  // game rules control object
-  game = new Chess(position);
 
   var onDragStart = function(source, piece) {
     // do not pick up pieces if the game is over or if it's not that side's turn
@@ -106,6 +95,29 @@ function setDesktopBoard(position = false, sparePieces = false) {
     if (game.history().length > 0) $('#btn-take-back').removeClass('disabled');
   };
 
+  gameEnd = false;
+
+  // mode to set chess figures in custom position
+  if (sparePieces) {
+    board = ChessBoard('board', {
+      draggable: true,
+      dropOffBoard: 'trash',
+      sparePieces: true,
+      pieceTheme: 'img/pieces/{piece}.svg'
+    });
+    return;
+  }
+
+  // init board with preloaded position (fen)
+  if (position == false) {
+    position = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+  } else {
+    console.log('Custom: ' + position);
+  }
+
+  // game rules control object
+  game = new Chess(position);
+
   board = ChessBoard('board', {
 
     position: position,
@@ -126,15 +138,8 @@ function setDesktopBoard(position = false, sparePieces = false) {
 
   gameHistoryClear();
 
-  // field highlight functions
-  var removeGreySquares = function() {
-    $('#board .square-55d63').css('background', '');
-  };
-
-  var greySquare = function(square) {
-    var squareEl = $('#board .square-' + square), background = '#fbe3e7';
-    if (squareEl.hasClass('black-3c85d') === true) background = '#f7c5cd';
-    squareEl.css('background', background);
-  };
-
+  if(game.turn() == 'b') {
+    // This probably breaks some logic allowing web user to play as black but fuck it.
+    opponentTurn(false)
+  }
 };
